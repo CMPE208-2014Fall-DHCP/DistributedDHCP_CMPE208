@@ -1,0 +1,10 @@
+OS: ubuntu 14.04LTS
+dhcpd version: 4.2.4
+
+ cd dhcp-4.2.4
+ ./configure CFLAGS=-g --enable-dhcpv6=no
+ make
+ make install
+ 
+ 
+ 

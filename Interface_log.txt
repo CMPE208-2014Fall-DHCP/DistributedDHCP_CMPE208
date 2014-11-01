@@ -1,0 +1,21 @@
+
+************************************************************************************
+
+int log_debug (const char *fmt, ...)
+Description: Log a debug message.
+sample code: log_debug ("omapi_connect(%s, port=%d)", server_name, port);
+
+
+int log_info (const char *fmt, ...)
+Description: Log a note.
+sample code: log_info ("DHCPDECLINE on %s to %s port %d", servername, portno);
+
+
+int log_error (const char * fmt, ...)
+Description: Log an error message.
+sample code: log_error ("%s(%d): non-null pointer", __FILE__, __LINE__);
+
+
+void log_fatal (const char * fmt, ... )
+Description: Log an error message, then exit.
+sample code: log_fatal ("Impossible error at %s:%d.", __FILE__, __LINE__);
