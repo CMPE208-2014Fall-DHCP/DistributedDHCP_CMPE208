@@ -26,19 +26,69 @@ router.get('/', function (req, res) {
         });
     });
 });
+
+//DHCP_CONF
 router.post('/conf', function(req, res){
     if(req.param('key')!=null || req.param('key')==''){
-        console.log(req);
         db.serialize(function() {
             var deletion = db.prepare("DELETE FROM DHCP_CONF WHERE key=?");
             var stmt = db.prepare("INSERT INTO DHCP_CONF VALUES (? , ?)");
             deletion.run(req.param('key'));
             stmt.run([req.param('key'), req.param('value')]);
 
+            deletion.finalize();
             stmt.finalize();
         });
     }
     res.redirect('/');
 });
+router.post('/conf/delete', function(req, res){
+    if(req.param('key')!=null || req.param('key')==''){
+        db.serialize(function() {
+            var deletion = db.prepare("DELETE FROM DHCP_CONF WHERE key=?");
+            deletion.run(req.param('key'));
+            deletion.finalize();
+        });
+    }
+    res.redirect('/');
+});
+
+//FIXED IP
+router.get('/fixedip', function(req, res){
+    var context = [];
+    var sql = "SELECT * FROM fixedip_tbl";
+    db.each(sql, function(err, row){
+        context.push({"identifer": row.identifer, "fixed_addr": row.fixed_addr});
+    }, function(){
+        res.render('pages/fixedip', {
+            title: 'DHCP fixed IP',
+            ips: context
+        })
+    });
+});
+router.post('/fixedip', function(req, res){
+    if(req.param('identifer')!=null || req.param('identifer')==''){
+        db.serialize(function() {
+            var deletion = db.prepare("DELETE FROM fixedip_tbl WHERE identifer=? OR fixed_addr=?");
+            var stmt = db.prepare("INSERT INTO fixedip_tbl VALUES (? , ?)");
+            deletion.run([req.param('identifer'), req.param('fixed_addr')]);
+            stmt.run([req.param('identifer'), req.param('fixed_addr')]);
+            deletion.finalize();
+            stmt.finalize();
+        });
+    }
+    res.redirect('/fixedip');
+});
+router.post('/fixedip/delete', function(req, res){
+    if(req.param('identifer')!=null || req.param('identifer')==''){
+        db.serialize(function() {
+            var deletion = db.prepare("DELETE FROM fixedip_tbl WHERE identifer=?");
+            deletion.run(req.param('identifer'));
+            deletion.finalize();
+        });
+    }
+    res.redirect('/fixedip');
+});
+
 
 module.exports = router;
