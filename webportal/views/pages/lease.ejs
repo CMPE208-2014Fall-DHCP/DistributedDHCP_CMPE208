@@ -7,6 +7,7 @@
         <th>timeout</th>
         <th>creator</th>
         <th>owner</th>
+        <th>ip</th>
     </tr>
     <% leases.forEach(function(lease) { %>
     <tr>
@@ -15,6 +16,7 @@
         <td><%= lease.timeout %></td>
         <td><%= lease.creator %></td>
         <td><%= lease.owner %></td>
+        <td><%= lease.ip %></td>
     </tr>
     <% }); %>
 

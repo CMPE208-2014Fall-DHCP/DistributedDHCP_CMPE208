@@ -1,11 +1,46 @@
-<!DOCTYPE html>
-<html>
-  <head>
-    <title><%= title %></title>
-    <link rel='stylesheet' href='/stylesheets/style.css' />
-  </head>
-  <body>
-    <h1><%= title %></h1>
-    <p>Welcome to <%= title %></p>
-  </body>
-</html>
+<% include ./partials/head %>
+
+<h1><%=title%></h1>
+<h2>Server Activities</h2>
+<table class='table table-striped table-bordered'>
+  <tr>
+    <th>owner</th>
+    <th>state</th>
+    <th>heartbeat</th>
+  </tr>
+  <% servers.forEach(function(server) { %>
+  <tr>
+    <td><a href="/leases/?owner=<%= server.owner %>"> <%= server.owner %> </a></td>
+    <td><%= server.state %></td>
+    <td><%= server.heartbeat %></td>
+  </tr>
+  <% }); %>
+</table>
+
+<h2>Server Configuration</h2>
+<table class='table table-striped table-bordered'>
+  <tr>
+    <th>key</th>
+    <th>value</th>
+  </tr>
+  <% kvs.forEach(function(kv) { %>
+  <tr>
+    <td><%= kv.key %></td>
+    <td><%= kv.value %></td>
+  </tr>
+  <% }); %>
+</table>
+
+<form action="/conf" method="post" class="form-inline" enctype="application/x-www-form-urlencoded" role="form">
+  <div class="form-group">
+    <label for="first_name">Key</label>
+    <input type="text" class="form-control" id="key" name="key" placeholder="Input your key">
+  </div>
+  <div class="form-group">
+    <label for="last_name">Value</label>
+    <input type="text" class="form-control" id="value" name="value" placeholder="Input your value">
+  </div>
+  <button type="submit" class="btn btn-success">UPSERT</button>
+</form>
+
+<% include ./partials/foot %>
