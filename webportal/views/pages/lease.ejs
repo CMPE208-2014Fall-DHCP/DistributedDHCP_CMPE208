@@ -2,21 +2,19 @@
 <h1><%=title%></h1>
 <table class='table table-striped table-bordered'>
     <tr>
-        <th>hw_addr</th>
-        <th>state</th>
-        <th>timeout</th>
-        <th>creator</th>
-        <th>owner</th>
-        <th>ip</th>
+        <th>Lease IP</th>
+        <th>Hardware address</th>
+        <th>State</th>
+        <th>Time out</th>
+        <th>Owner</th>
     </tr>
     <% leases.forEach(function(lease) { %>
     <tr>
+        <td><%= lease.lease_ip %></td>
         <td><%= lease.hw_addr %></td>
         <td><%= lease.state %></td>
         <td><%= lease.timeout %></td>
-        <td><%= lease.creator %></td>
         <td><%= lease.owner %></td>
-        <td><%= lease.ip %></td>
     </tr>
     <% }); %>
 

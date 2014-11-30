@@ -2,16 +2,16 @@
 <h1><%=title%></h1>
 <table class='table table-striped table-bordered'>
     <tr>
-        <th>hw_addr</th>
-        <th>fixed_addr</th>
-        <th>action</th>
+        <th>Hardware Address</th>
+        <th>Fixed IP</th>
+        <th>Action</th>
     </tr>
     <% ips.forEach(function(ip) { %>
     <tr>
-        <td><%= ip.identifer %></td>
-        <td><%= ip.fixed_addr %></td>
+        <td><%= ip.hw_addr %></td>
+        <td><%= ip.fixed_ip %></td>
         <td><form action="/fixedip/delete" method="post" class="form-inline" role="form">
-                <input type="hidden" name="identifer" value="<%= ip.identifer %>">
+                <input type="hidden" name="hw_addr" value="<%= ip.hw_addr %>">
                 <button type="submit" class="btn btn-danger">DELETE</button>
             </form></td>
     </tr>
@@ -21,11 +21,11 @@
 <form action="/fixedip" method="post" class="form-inline" enctype="application/x-www-form-urlencoded" role="form">
     <div class="form-group">
         <label for="first_name">Mac Address</label>
-        <input type="text" class="form-control" id="identifer" name="identifer" placeholder="Input your identifer">
+        <input type="text" class="form-control" id="hw_addr" name="hw_addr" placeholder="Input your hw_addr">
     </div>
     <div class="form-group">
         <label for="last_name">Fixed Address</label>
-        <input type="text" class="form-control" id="fixed_addr" name="fixed_addr" placeholder="Input your fixed_addr">
+        <input type="text" class="form-control" id="fixed_ip" name="fixed_ip" placeholder="Input your fixed_ip">
     </div>
     <button type="submit" class="btn btn-success">UPSERT</button>
 </form>

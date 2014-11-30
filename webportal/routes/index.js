@@ -1,19 +1,23 @@
 var express = require('express');
 var router = express.Router();
 var db = require('./conn').db;
+var IP_Utils = require('../public/javascripts/ip_util');
 
 /* GET home page. */
 router.get('/', function (req, res) {
     var KVs = [];
     var servers = [];
-    var sql = "SELECT * FROM DHCP_CONF";
+    var sql = "SELECT * FROM tbl_cfg";
     db.each(sql, function (err, row) {
-        KVs.push({"key": row.key, "value": row.value});
+        KVs.push({"key": row.key, "val": row.val});
     }, function(){
-        var sql2 = "SELECT * FROM active_tbl";
+        //GET nodes
+        var sql2 = "SELECT * FROM tbl_nodes";
         db.each(sql2, function(err, row){
             servers.push({
-                "owner": row.owner,
+                "node_name": row.node_name,
+                "ip_num": row.server_ip,
+                "server_ip": IP_Utils.intToIP(row.server_ip),
                 "state": row.state,
                 "heartbeat": row.heartbeat
             });
@@ -31,10 +35,10 @@ router.get('/', function (req, res) {
 router.post('/conf', function(req, res){
     if(req.param('key')!=null || req.param('key')==''){
         db.serialize(function() {
-            var deletion = db.prepare("DELETE FROM DHCP_CONF WHERE key=?");
-            var stmt = db.prepare("INSERT INTO DHCP_CONF VALUES (? , ?)");
+            var deletion = db.prepare("DELETE FROM tbl_cfg WHERE key=?");
+            var stmt = db.prepare("INSERT INTO tbl_cfg VALUES (? , ?)");
             deletion.run(req.param('key'));
-            stmt.run([req.param('key'), req.param('value')]);
+            stmt.run([req.param('key'), req.param('val')]);
 
             deletion.finalize();
             stmt.finalize();
@@ -45,7 +49,7 @@ router.post('/conf', function(req, res){
 router.post('/conf/delete', function(req, res){
     if(req.param('key')!=null || req.param('key')==''){
         db.serialize(function() {
-            var deletion = db.prepare("DELETE FROM DHCP_CONF WHERE key=?");
+            var deletion = db.prepare("DELETE FROM tbl_cfg WHERE key=?");
             deletion.run(req.param('key'));
             deletion.finalize();
         });
@@ -56,9 +60,9 @@ router.post('/conf/delete', function(req, res){
 //FIXED IP
 router.get('/fixedip', function(req, res){
     var context = [];
-    var sql = "SELECT * FROM fixedip_tbl";
+    var sql = "SELECT * FROM tbl_fixedip";
     db.each(sql, function(err, row){
-        context.push({"identifer": row.identifer, "fixed_addr": row.fixed_addr});
+        context.push({"hw_addr": row.hw_addr, "fixed_ip": IP_Utils.intToIP(row.fixed_ip)});
     }, function(){
         res.render('pages/fixedip', {
             title: 'DHCP fixed IP',
@@ -67,12 +71,12 @@ router.get('/fixedip', function(req, res){
     });
 });
 router.post('/fixedip', function(req, res){
-    if(req.param('identifer')!=null || req.param('identifer')==''){
+    if(req.param('hw_addr')!=null || req.param('hw_addr')==''){
         db.serialize(function() {
-            var deletion = db.prepare("DELETE FROM fixedip_tbl WHERE identifer=? OR fixed_addr=?");
-            var stmt = db.prepare("INSERT INTO fixedip_tbl VALUES (? , ?)");
-            deletion.run([req.param('identifer'), req.param('fixed_addr')]);
-            stmt.run([req.param('identifer'), req.param('fixed_addr')]);
+            var deletion = db.prepare("DELETE FROM tbl_fixedip WHERE hw_addr=?");
+            var stmt = db.prepare("INSERT INTO tbl_fixedip VALUES (? , ?)");
+            deletion.run([req.param('hw_addr')]);
+            stmt.run([req.param('hw_addr'), req.param('fixed_ip')]);
             deletion.finalize();
             stmt.finalize();
         });
@@ -80,10 +84,10 @@ router.post('/fixedip', function(req, res){
     res.redirect('/fixedip');
 });
 router.post('/fixedip/delete', function(req, res){
-    if(req.param('identifer')!=null || req.param('identifer')==''){
+    if(req.param('hw_addr')!=null || req.param('hw_addr')==''){
         db.serialize(function() {
-            var deletion = db.prepare("DELETE FROM fixedip_tbl WHERE identifer=?");
-            deletion.run(req.param('identifer'));
+            var deletion = db.prepare("DELETE FROM tbl_fixedip WHERE hw_addr=?");
+            deletion.run(req.param('hw_addr'));
             deletion.finalize();
         });
     }

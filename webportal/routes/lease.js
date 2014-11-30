@@ -4,26 +4,30 @@
 var express = require('express');
 var router = express.Router();
 var db = require('./conn').db;
+var IP_Utils = require('../public/javascripts/ip_util');
 
 router.get('/', function(req, res) {
+    var scope = 'All';
     var context = [];
-    var sql = "SELECT lease_tbl.*, fixedip_tbl.fixed_addr FROM lease_tbl LEFT JOIN fixedip_tbl ON lease_tbl.hw_addr=fixedip_tbl.identifer";
+    var sql = "SELECT * FROM tbl_lease";
     if(req.param('owner')!=null){
         var owner = req.param('owner');
         sql += " WHERE owner='" + owner + "'";
+        scope = IP_Utils.intToIP(owner);
     }
     db.each(sql, function(err, row){
-        context.push({ "hw_addr" : row.hw_addr,
+        context.push({
+            "lease_ip": IP_Utils.intToIP(row.lease_ip),
+            "hw_addr" : row.hw_addr,
             "state": row.state,
             "timeout": row.timeout,
             "creator": row.creator,
-            "owner": row.owner,
-            "ip": row.fixed_addr
+            "owner": IP_Utils.intToIP(row.owner)
         });
     }, function(){
         //res.json(context);
         res.render('pages/lease', {
-            title: "DHCP Leases",
+            title: "DHCP Leases [" + scope + ']',
             leases: context
         });
     });

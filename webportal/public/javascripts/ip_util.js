@@ -27,7 +27,8 @@ IP_Utils = {
         result += parseInt(ipArr[3]);
         return result;
     },
-    isValidIP: function (ip){
+    // varify if an ip is valid, e.g. '-1.0.0.1' => false
+    isValidIP: function (ip) {
         var ipArr = ip.split('.');
         if(ipArr.length != 4)
             return false;
@@ -37,6 +38,12 @@ IP_Utils = {
                 return false;
         }
         return true;
+    },
+    // varify if a net mask is valid, '255.254.255.0' => false
+    isValidMask: function(num) {
+        var reverse = ~num;
+        var sum = reverse + 1;
+        return (reverse & sum) == 0;
     }
 };
 var ipUtilTest = function(){
@@ -49,6 +56,16 @@ var ipUtilTest = function(){
     console.log(IP_Utils.ipToInt('255.255.255.0'));//4294967040
     console.log(IP_Utils.ipToInt('172.17.1.10'));//2886795530
     console.log(IP_Utils.ipToInt('256.1.1.1'));//0
+
+    console.log('=========ip is valid======');
+    console.log(IP_Utils.isValidIP('-1.0.0.1'));
+    console.log(IP_Utils.isValidIP('a.0.0.1'));
+    console.log(IP_Utils.isValidIP('...'));
+
+    console.log('=========Net mask is valid======');
+    console.log(IP_Utils.isValidMask(IP_Utils.ipToInt('255.255.254.0')));//true
+    console.log(IP_Utils.isValidMask(IP_Utils.ipToInt('255.254.255.0')));//false
+    console.log(IP_Utils.isValidMask(4294967297));//false
 }
 ipUtilTest();
 module.exports = IP_Utils;
