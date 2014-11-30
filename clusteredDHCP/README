@@ -1,0 +1,27 @@
+CMPE208 Project  -- Clustered DHCP Server
+
+cd src/
+gcc -Iinclude -g -o clusterDHCP db.c dhcp.c log.c main.c socket.c -lpthread -lsqlite3
+
+./clusterDHCP -s dhcp_server_ip
+eg: ./clusterDHCP -s 192.168.100.130
+
+
+
+4 tables in sqlite:
+
+CREATE TABLE IF NOT EXISTS tbl_cfg 
+(key VARCHAR(32), val INTEGER);
+
+CREATE TABLE IF NOT EXISTS tbl_fixedip 
+(hw_addr VARCHAR(24), fixed_ip INTEGER, PRIMARY KEY (hw_addr));
+
+CREATE TABLE IF NOT EXISTS tbl_lease 
+(lease_ip INTEGER, hw_addr VARCHAR(24), state INTEGER, 
+  timeout INTEGER, creator INTEGER, owner INTEGER, PRIMARY KEY (lease_ip));"
+
+CREATE TABLE IF NOT EXISTS tbl_nodes 
+(node_name VARCHAR(32), server_ip INTEGER, state INTEGER, 
+  heartbeat INTEGER, takeover_ip INTEGER);"
+
+
