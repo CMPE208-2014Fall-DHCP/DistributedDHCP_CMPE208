@@ -12,9 +12,9 @@ void init_log(dhcp_config *conf)
 	
 	logfile = fopen(conf->log_filename, "at");
 	if(logfile == NULL){
-		printf("open log file %s fail, output debug info on screen\n");
-		conf->display = 1;
-		conf->loglevel = LOG_BUTT;
+		printf("open log file %s fail, output debug info on screen\n", conf->log_filename);
+		conf->display  = 1;
+		conf->loglevel = 0;
 	}
 }
 
@@ -27,7 +27,7 @@ void exit_log()
 	fclose(logfile);
 }
 
-void log(int loglevel, int b, char *format, ...)
+void logtext(int loglevel, char *format, ...)
 {
 		va_list args;
 		char buf[256];
@@ -37,11 +37,11 @@ void log(int loglevel, int b, char *format, ...)
 		va_end(args);
 
 	    if(dhcpconf.display)
-			printf("%s\n", buf);
+			printf("%s", buf);
 
         //output to file
-	    if(dhcpconf.loglevel <= loglevel) {
-             fprintf(logfile, "[%s] %s\n", buffer, mess);
+	    if(loglevel >= dhcpconf.loglevel) {
+             fprintf(logfile, "%s", buf);
              fflush(logfile);
     	}
 }

@@ -140,65 +140,23 @@
 #define DHCP_OPTION_END						255
 
 
-struct dhcplease //cache
-{
-	char *mapname;
-	time_t expiry;
-	union
-	{
-		struct
-		{
-			DHCP_UINT8 reserved;
-			DHCP_UINT8 dataType;
-			DHCP_UINT8 sockInd;
-			DHCP_UINT8 dnsIndex;
-		};
-		struct
-		{
-			unsigned fixed: 1;
-			unsigned local: 1;
-			unsigned display: 1;
-			unsigned reserved1: 5;
-			char rangeInd;
-			DHCP_UINT16 dhcpInd;
-		};
-	};
-	union
-	{
-		int bytes;
-		DHCP_UINT32 ip;
-	};
-	union
-	{
-		struct sockaddr_in  *addr;
-		DHCP_UINT8 *options;
-	};
-	union
-	{
-		DHCP_UINT8 *response;
-		char *hostname;
-		char *query;
-	};
-	DHCP_UINT8 data;
-};
 
-
-struct dhcpop
+typedef struct _dhcpop
 {
 	DHCP_UINT8 opt_code;
 	DHCP_UINT8 size;
 	DHCP_UINT8 value[256];
-};
+}dhcpop;
 
-struct msg_control
+typedef struct _msg_control
 {
 	ulong cmsg_len;
 	int cmsg_level;
 	int cmsg_type;
-	in_pktinfo pktinfo;
-};
+	struct in_pktinfo pktinfo;
+}msg_control;
 
-struct dhcp_header
+typedef struct _dhcp_header
 {
 	DHCP_UINT8 bp_op;
 	DHCP_UINT8 bp_htype;
@@ -216,16 +174,33 @@ struct dhcp_header
 	char bp_sname[64];
 	DHCP_UINT8 bp_file[128];
 	DHCP_UINT8 bp_magic_num[4];
-};
+}dhcp_header;
 
-struct dhcp_packet
+typedef struct _dhcp_packet
 {
 	dhcp_header header;
 	DHCP_UINT8 vend_data[1024 - sizeof(dhcp_header)];
-};
+}dhcp_packet;
 
+typedef enum _LEASE_TYPE
+{
+    LEASE_FREE,
+	LEASE_ALLOCATED,        
+    LEASE_BUTT,
+}LEASE_TYPE;
 
-struct dhcprqst //dhcpRequst
+typedef struct _dhcplease
+{
+	list_head    list;    	
+    int          leaseip;
+	int          timeout;
+	int          serverip;
+	int          state; //
+	int          fixedip;
+	char         chaddr[24];
+}dhcplease;
+
+typedef struct _dhcprqst
 {
 	DHCP_UINT32 lease;
 	union
@@ -235,17 +210,16 @@ struct dhcprqst //dhcpRequst
 	};
 	char hostname[256];
 	char chaddr[64];
-	DHCP_UINT32 server;
+	DHCP_UINT32 serverid;
 	DHCP_UINT32 reqIP;
 	int bytes;
 	struct sockaddr_in remote;
 	socklen_t sockLen;
 	DHCP_UINT16 messsize;
-	msghdr msg;
-	iovec iov[1];
+	struct msghdr msg;
+	struct iovec iov[1];
 	msg_control msgcontrol;
 	DHCP_UINT8 *vp;
-	dhcplease *dhcpEntry;
 	dhcpop agentOption;
 	dhcpop clientId;
 	dhcpop subnet;
@@ -258,9 +232,11 @@ struct dhcprqst //dhcpRequst
 	DHCP_UINT8 opAdded[256];
 	DHCP_UINT8 req_type;
 	DHCP_UINT8 resp_type;
-	server_sock *sockInd;
-};
+	time_t     now_time;
+	server    *dhcpserver;
+}dhcprqst;
 
+dhcplease *get_mem_dhcplease(int ip, server *node);
 
 
 #endif

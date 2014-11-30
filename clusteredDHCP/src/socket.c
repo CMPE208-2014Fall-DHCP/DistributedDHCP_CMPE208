@@ -1,20 +1,21 @@
 
 #include "config.h"
 
+extern dhcp_config  dhcpconf;
+
 void poll_sock(dhcp_data *dhcp, fd_set *readfds)
 {
-	timeval tv;
+	struct timeval tv;
 
-	FD_ZERO(&readfds);
-	tv.tv_sec  = 1;
+	FD_ZERO(readfds);
+	tv.tv_sec  = 100000;
 	tv.tv_usec = 0;
 
     *readfds = dhcp->reads;
-	select(dhcp->maxFD, &readfds, NULL, NULL, &tv));
-	dhcp->now_time = time(NULL);
+	select(FD_SETSIZE, readfds, NULL, NULL, &tv);
 }
 
-server_sock *get_server(int serverip, dhcp_data *dhcp)
+server *get_server(int serverip, dhcp_data *dhcp)
 {
     int i;
 	
@@ -56,7 +57,7 @@ int validate_localip(int localip)
 	
 }
 
-server_sock *get_server_bysock(int sock, dhcp_data *dhcp)
+server *get_server_bysock(int sock, dhcp_data *dhcp)
 {
     int i;
 	
@@ -72,45 +73,15 @@ server_sock *get_server_bysock(int sock, dhcp_data *dhcp)
 	return NULL;
 }
 
-
-int del_dhcpsock(int serverip, dhcp_data *dhcp)
-{
-    int i;
-    if(dhcp->server_num == 0)
-		return 0;
-
-    for(i = 0; i < dhcp->server_num; i++ ){
-	    if(dhcp->serverlist[i].serverip != serverip)
-			continue;
-
-		close(dhcp->serverlist[i].sock);
-        FD_CLR(dhcp->serverlist[i].sock, &dhcp->reads);
-		
-		dhcp->serverlist[i].sock 	= 0;
-		dhcp->serverlist[i].serverip = 0;
-		dhcp->server_num --;
-		break;
-	}
-
-	if(i != dhcp->server_num)
-		memcpy(&dhcp->serverlist[i], &dhcp->serverlist[i+1], (dhcp->server_num-i)*sizeof(server_sock));
-
-	return 1;
-}
-
 int add_dhcpsock(int serverip, dhcp_data *dhcp)
 {
     int flag, ret, sock;
 	struct sockaddr_in s_src;
-
-    if(dhcp->server_num >= 16)
-		return 0;
 	
-	flag = true;
+	flag = TRUE;
 	sock = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP);
 	if(sock < 0)
 		return 0;
-	
 	
 	setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (char*)&flag, sizeof(flag));	
 	setsockopt(sock, SOL_SOCKET, SO_BROADCAST, (char*)&flag, sizeof(flag));	
@@ -125,17 +96,8 @@ int add_dhcpsock(int serverip, dhcp_data *dhcp)
 	    close(sock);
 		return 0;
 	}
-	
-	dhcp->serverlist[dhcp->server_num].sock     = sock;
-	dhcp->serverlist[dhcp->server_num].serverip = serverip;
-	dhcp->server_num ++;
-	
-	FD_SET(sock, &dhcp->reads);
-	
-	if (dhcp->maxFD < sock)
-		dhcp->maxFD = sock;
-	
-    return 1;
+		
+    return sock;
 }
  
 
@@ -144,7 +106,7 @@ int init_dhcpsock(dhcp_config *conf, dhcp_data *dhcp)
     int flag, ret;
 	struct sockaddr_in s_src;
 
-	flag = true;
+	flag = TRUE;
 	dhcp->sock = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP);
 	if(dhcp->sock < 0)
 		return 0;
@@ -165,8 +127,6 @@ int init_dhcpsock(dhcp_config *conf, dhcp_data *dhcp)
 	}
 
     FD_SET(dhcp->sock, &dhcp->reads);
-	if (dhcp->maxFD < dhcp->sock)
-		dhcp->maxFD = dhcp->sock;
     return 1;
 }
 
