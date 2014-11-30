@@ -1,3 +1,6 @@
+/**
+ * Created by leituo56 on 11/22/14.
+ */
 var express = require('express');
 var path = require('path');
 var favicon = require('serve-favicon');
@@ -7,6 +10,7 @@ var bodyParser = require('body-parser');
 
 var routes = require('./routes/index');
 var leases = require('./routes/lease');
+var fixedip = require('./routes/fixedip');
 
 var app = express();
 
@@ -24,6 +28,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 app.use('/', routes);
 app.use('/leases', leases);
+app.use('/fixedip', fixedip);
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {

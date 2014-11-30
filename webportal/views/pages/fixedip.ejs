@@ -18,7 +18,8 @@
     <% }); %>
 
 </table>
-<form action="/fixedip" method="post" class="form-inline" enctype="application/x-www-form-urlencoded" role="form">
+<div id="fixedipAlert" class="alert alert-danger" role="alert"></div>
+<form id="fixedipForm" action="/fixedip" method="post" class="form-inline" enctype="application/x-www-form-urlencoded" role="form">
     <div class="form-group">
         <label for="first_name">Mac Address</label>
         <input type="text" class="form-control" id="hw_addr" name="hw_addr" placeholder="Input your hw_addr">
@@ -29,4 +30,19 @@
     </div>
     <button type="submit" class="btn btn-success">UPSERT</button>
 </form>
+<script>
+    $(document).ready(function(){
+        $('#fixedipAlert').hide();
+        $('#fixedipForm').submit(function(event){
+            var ip = $('#fixed_ip').val();
+            if(IP_Utils.isValidIP(ip)){
+                $('#fixed_ip').val(IP_Utils.ipToInt(ip));
+            }else{
+                var str = '"' + ip + '"' + ' is not a valid IP address!!';
+                $('#fixedipAlert').html(str).show();
+                event.preventDefault();
+            }
+        });
+    });
+</script>
 <% include ../partials/foot %>

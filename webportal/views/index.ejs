@@ -1,53 +1,88 @@
 <% include ./partials/head %>
 
-<h1><%=title%></h1>
+<h1><%= title %></h1>
 <h2>Clusters</h2>
 <table class='table table-striped table-bordered'>
-  <tr>
-    <th>Active Nodes</th>
-    <th>State</th>
-    <th>Server IP</th>
-    <!--<th>Heart Beat</th>-->
-  </tr>
-  <% servers.forEach(function(server) { %>
-  <tr>
-    <td><a href="/leases/?owner=<%= server.ip_num %>"> <%= server.node_name %> </a></td>
-    <td><%= server.state %></td>
-    <td><%= server.server_ip %></td>
-    <!--<td><%= server.heartbeat %></td>-->
-  </tr>
-  <% }); %>
+    <tr>
+        <th>Active Nodes</th>
+        <th>State</th>
+        <th>Server IP</th>
+        <!--<th>Heart Beat</th>-->
+    </tr>
+    <% servers.forEach(function(server) { %>
+    <tr>
+        <td><a href="/leases/?owner=<%= server.ip_num %>"> <%= server.node_name %> </a></td>
+        <td><%= server.state %></td>
+        <td><%= server.server_ip %></td>
+        <!--<td><%= server.heartbeat %></td>-->
+    </tr>
+    <% }); %>
 </table>
+<form id="indexForm" action="/mod" method="post" class="form-inline" enctype="application/x-www-form-urlencoded"
+      role="form">
+    <h2>Server Configuration</h2>
 
-<h2>Server Configuration</h2>
-<table class='table table-striped table-bordered'>
-  <tr>
-    <th>key</th>
-    <th>value</th>
-    <th>action</th>
-  </tr>
-  <% kvs.forEach(function(kv) { %>
-  <tr>
-    <td><%= kv.key %></td>
-    <td><%= kv.val %></td>
-    <td><form action="/conf/delete" method="post" class="form-inline" role="form">
-        <input type="hidden" name="key" value="<%= kv.key %>">
-        <button type="submit" class="btn btn-danger">DELETE</button>
-      </form></td>
-  </tr>
-  <% }); %>
-</table>
-
-<form action="/conf" method="post" class="form-inline" enctype="application/x-www-form-urlencoded" role="form">
-  <div class="form-group">
-    <label for="key">Key</label>
-    <input type="text" class="form-control" id="key" name="key" placeholder="Input your key">
-  </div>
-  <div class="form-group">
-    <label for="value">Value</label>
-    <input type="text" class="form-control" id="value" name="value" placeholder="Input your value">
-  </div>
-  <button type="submit" class="btn btn-success">UPSERT</button>
+    <div id="fixedipAlert" class="alert alert-danger" role="alert"></div>
+    <table class='table table-striped table-bordered'>
+        <!--<tr>-->
+        <!--<th>key</th>-->
+        <!--<th>value</th>-->
+        <!--<th style="display: none">action</th>-->
+        <!--</tr>-->
+        <% kvs.forEach(function(kv) { %>
+        <tr>
+            <td><%= kv.key %></td>
+            <td id="old_<%= kv.key %>"><%= kv.val %></td>
+            <td><input type="text" id="<%= kv.key %>" name="<%= kv.key %>" value="<%= kv.val %>"></td>
+            <!--<td style="display: none">-->
+            <!--<form action="/conf/delete" method="post" class="form-inline" role="form">-->
+            <!--<input type="hidden" name="key" value="<%= kv.key %>">-->
+            <!--<button type="submit" class="btn btn-danger">DELETE</button>-->
+            <!--</form>-->
+            <!--</td>-->
+        </tr>
+        <% }); %>
+    </table>
+    <button type="submit" class="btn btn-success">UPDATE</button>
 </form>
-
+<script>
+    $(document).ready(function () {
+        $('#fixedipAlert').hide();
+        $('#indexForm').submit(function (event) {
+            var start = $('#Range_start').val();
+            var end = $('#Range_end').val();
+            var mask = $('#SubnetMask').val();
+            var router = $('#Router').val();
+            var lease = $('#LeaseTime').val();
+            if (!IP_Utils.isValidIP(start) || !IP_Utils.isValidIP(end) ||
+                    !IP_Utils.isValidIP(mask) || !IP_Utils.isValidIP(router)) {
+                var str = 'One of "' + [start, end, mask, router].join(', ')
+                        + ' is not a valid IP address!!';
+                $('#fixedipAlert').html(str).show();
+                event.preventDefault();
+            } else if(IP_Utils.ipToInt(start) > IP_Utils.ipToInt(end)){
+                var str = start + ' is larger than ' + end;
+                $('#fixedipAlert').html(str).show();
+                event.preventDefault();
+            } else if(!IP_Utils.isValidMask(IP_Utils.ipToInt(mask))){
+                var str = mask + ' is not a valid subnet mask! ';
+                $('#fixedipAlert').html(str).show();
+                event.preventDefault();
+            } else if(!IP_Utils.isValidSubnet(start, end, mask, router)){
+                var str = [start, end, router].join(', ') + ' is not in the same subnet!!';
+                $('#fixedipAlert').html(str).show();
+                event.preventDefault();
+            } else if(isNaN(lease) || lease < 0){
+                var str = 'Not valid lease time!';
+                $('#fixedipAlert').html(str).show();
+                event.preventDefault();
+            }else{
+                $('#Range_start').val(IP_Utils.ipToInt(start));
+                $('#Range_end').val(IP_Utils.ipToInt(end));
+                $('#SubnetMask').val(IP_Utils.ipToInt(mask));
+                $('#Router').val(IP_Utils.ipToInt(router));
+            }
+        });
+    });
+</script>
 <% include ./partials/foot %>

@@ -39,11 +39,19 @@ IP_Utils = {
         }
         return true;
     },
-    // varify if a net mask is valid, '255.254.255.0' => false
+    // verify if a net mask is valid, ipToInt('255.254.255.0') => false
     isValidMask: function(num) {
-        var reverse = ~num;
-        var sum = reverse + 1;
-        return (reverse & sum) == 0;
+        var reverse = ~num;//11111000 => 00000111
+        var sum = reverse + 1;//00000111 => 00001000
+        return (reverse & sum) == 0;//00000111 & 00001000==0
+    },
+    isValidSubnet: function(s, e, m, r){
+        var start = this.ipToInt(s);
+        var end = this.ipToInt(e);
+        var mask = this.ipToInt(m);
+        var router = this.ipToInt(r);
+        var net = router & mask;
+        return (start & mask) == net && (end & mask) == net;
     }
 };
 var ipUtilTest = function(){
@@ -66,6 +74,14 @@ var ipUtilTest = function(){
     console.log(IP_Utils.isValidMask(IP_Utils.ipToInt('255.255.254.0')));//true
     console.log(IP_Utils.isValidMask(IP_Utils.ipToInt('255.254.255.0')));//false
     console.log(IP_Utils.isValidMask(4294967297));//false
+
+    console.log('=========Subnet is valid======');
+    console.log(IP_Utils.isValidSubnet('172.17.1.10', '172.17.1.50', '255.255.255.0', '172.17.1.1'));
+    console.log(IP_Utils.isValidSubnet('172.17.1.10', '172.17.2.50', '255.255.255.0', '172.17.1.1'));
 }
-ipUtilTest();
-module.exports = IP_Utils;
+//ipUtilTest();
+try {
+    module.exports = IP_Utils;
+}catch (e){
+    console.log('client');
+}
