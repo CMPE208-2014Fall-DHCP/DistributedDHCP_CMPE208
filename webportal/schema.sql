@@ -32,10 +32,10 @@ CREATE TABLE "tbl_cfg" (
 	`key`	VARCHAR(32),
 	`val`	INTEGER
 );
-INSERT INTO `tbl_cfg` VALUES('Range_start',2886795530);
-INSERT INTO `tbl_cfg` VALUES('Range_end',2886795570);
-INSERT INTO `tbl_cfg` VALUES('SubnetMask',4294967040);
-INSERT INTO `tbl_cfg` VALUES('Router',2886795521);
-INSERT INTO `tbl_cfg` VALUES('LeaseTime',3600);
+INSERT INTO `tbl_cfg` VALUES('range_start',2886795530);
+INSERT INTO `tbl_cfg` VALUES('range_end',2886795570);
+INSERT INTO `tbl_cfg` VALUES('subnetmask',4294967040);
+INSERT INTO `tbl_cfg` VALUES('router',2886795521);
+INSERT INTO `tbl_cfg` VALUES('lease_time',3600);
 ;
 COMMIT;
