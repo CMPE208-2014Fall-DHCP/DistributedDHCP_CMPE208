@@ -1,5 +1,10 @@
 CMPE208 Project  -- Clustered DHCP Server
 
+//Added by Tuo, if sqlite3.h is missing, using the following command to install(Debian, Ubuntu)
+sudo apt-get install sqlite3
+sudo apt-get install libsqlite3-dev
+//Add end
+
 cd src/
 gcc -Iinclude -g -o clusterDHCP db.c dhcp.c log.c main.c socket.c -lpthread -lsqlite3
 
