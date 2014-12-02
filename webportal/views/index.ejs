@@ -49,18 +49,18 @@
     $(document).ready(function () {
         $('#fixedipAlert').hide();
         $('#indexForm').submit(function (event) {
-            var start = $('#Range_start').val();
-            var end = $('#Range_end').val();
-            var mask = $('#SubnetMask').val();
-            var router = $('#Router').val();
-            var lease = $('#LeaseTime').val();
+            var start = $('#range_start').val();
+            var end = $('#range_end').val();
+            var mask = $('#subnetmask').val();
+            var router = $('#router').val();
+            var lease = $('#lease_time').val();
             if (!IP_Utils.isValidIP(start) || !IP_Utils.isValidIP(end) ||
                     !IP_Utils.isValidIP(mask) || !IP_Utils.isValidIP(router)) {
                 var str = 'One of "' + [start, end, mask, router].join(', ')
                         + ' is not a valid IP address!!';
                 $('#fixedipAlert').html(str).show();
                 event.preventDefault();
-            } else if(IP_Utils.ipToInt(start) > IP_Utils.ipToInt(end)){
+            } else if(IP_Utils.changeEndian(IP_Utils.ipToInt(start)) > IP_Utils.changeEndian(IP_Utils.ipToInt(end))){
                 var str = start + ' is larger than ' + end;
                 $('#fixedipAlert').html(str).show();
                 event.preventDefault();
@@ -77,10 +77,10 @@
                 $('#fixedipAlert').html(str).show();
                 event.preventDefault();
             }else{
-                $('#Range_start').val(IP_Utils.ipToInt(start));
-                $('#Range_end').val(IP_Utils.ipToInt(end));
-                $('#SubnetMask').val(IP_Utils.ipToInt(mask));
-                $('#Router').val(IP_Utils.ipToInt(router));
+                $('#range_start').val(IP_Utils.ipToInt(start));
+                $('#range_end').val(IP_Utils.ipToInt(end));
+                $('#subnetmask').val(IP_Utils.ipToInt(mask));
+                $('#router').val(IP_Utils.ipToInt(router));
             }
         });
     });

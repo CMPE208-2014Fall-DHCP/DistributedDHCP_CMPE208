@@ -8,8 +8,10 @@ IP_Utils = {
     MIN: 0,
     // Number => IP address, e.g. 4294967295=>'255.255.255.255'
     intToIP: function (num) {
+        if(num < 0)
+            num = num >>> 0;//change num to unsigned if < 0
         var ipArr = [0, 0, 0, 0];
-        for (var i = 3; i >= 0; i--) {
+        for (var i = 0; i < 4; i++) {
             ipArr[i] = num % 256;
             num = Math.floor(num / 256);
         }
@@ -21,11 +23,11 @@ IP_Utils = {
             return 0;
         var ipArr = ip.split('.');
         var result = 0;
-        result += parseInt(ipArr[0]) * 256 * 256 * 256;
-        result += parseInt(ipArr[1]) * 256 * 256;
-        result += parseInt(ipArr[2]) * 256;
-        result += parseInt(ipArr[3]);
-        return result;
+        result += parseInt(ipArr[3]) * 256 * 256 * 256;
+        result += parseInt(ipArr[2]) * 256 * 256;
+        result += parseInt(ipArr[1]) * 256;
+        result += parseInt(ipArr[0]);
+        return (result >> 0);
     },
     // varify if an ip is valid, e.g. '-1.0.0.1' => false
     isValidIP: function (ip) {
@@ -39,8 +41,16 @@ IP_Utils = {
         }
         return true;
     },
+    // change the Endianness of a number
+    changeEndian: function(val) {
+        return ((val & 0xFF) << 24)
+            | ((val & 0xFF00) << 8)
+            | ((val >> 8) & 0xFF00)
+            | ((val >> 24) & 0xFF);
+    },
     // verify if a net mask is valid, ipToInt('255.254.255.0') => false
     isValidMask: function(num) {
+        num = this.changeEndian(num);
         var reverse = ~num;//11111000 => 00000111
         var sum = reverse + 1;//00000111 => 00001000
         return (reverse & sum) == 0;//00000111 & 00001000==0
@@ -56,13 +66,13 @@ IP_Utils = {
 };
 var ipUtilTest = function(){
     console.log('=========int to ip========');
-    console.log(IP_Utils.intToIP(4294967295));
-    console.log(IP_Utils.intToIP(294967295));
-    console.log(IP_Utils.intToIP(3));
+    console.log(IP_Utils.intToIP(16777215));
+    console.log(IP_Utils.intToIP(509913280));
+    console.log(IP_Utils.intToIP(-2107332416));
 
     console.log('=========ip to int========');
     console.log(IP_Utils.ipToInt('255.255.255.0'));//4294967040
-    console.log(IP_Utils.ipToInt('172.17.1.10'));//2886795530
+    console.log(IP_Utils.ipToInt('192.168.100.130'));//2886795530
     console.log(IP_Utils.ipToInt('256.1.1.1'));//0
 
     console.log('=========ip is valid======');
@@ -73,7 +83,7 @@ var ipUtilTest = function(){
     console.log('=========Net mask is valid======');
     console.log(IP_Utils.isValidMask(IP_Utils.ipToInt('255.255.254.0')));//true
     console.log(IP_Utils.isValidMask(IP_Utils.ipToInt('255.254.255.0')));//false
-    console.log(IP_Utils.isValidMask(4294967297));//false
+    console.log(IP_Utils.isValidMask(16777215));//true
 
     console.log('=========Subnet is valid======');
     console.log(IP_Utils.isValidSubnet('172.17.1.10', '172.17.1.50', '255.255.255.0', '172.17.1.1'));
