@@ -36,7 +36,7 @@ void db_change()
 	old_time = new_time;
 	write_heartbeat(dhcpconf.serverip, heartbeat, 1, 0, dhcpconf.hostname);
 	load_cfg_change();
-	load_lease(); //maybe some node hand over lease to me
+	load_lease(get_server(dhcpconf.serverip, &dhcpdata)); //maybe some node hand over lease to me
 	mark_timeout_lease();
 }
 
