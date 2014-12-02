@@ -319,11 +319,40 @@ int valid_range(server *node, int ip)
 
 int add_mem_lease(dhcplease *lease, server *node)
 {
-	if(!valid_range(node, lease->leaseip))
-		return 0;
-
 	INIT_LIST_HEAD(&lease->list);
 	list_add_tail(&lease->list, &node->lease_list);	
+}
+
+int handover_lease(server *master, int slave_ip)
+{
+    dhcplease *lease = (dhcplease *)malloc(256 * sizeof(dhcplease));
+	int num = 256, i;
+
+	db_server_leaselist(slave_ip, lease, &num, "creator");
+	for(i = 0; i < num; i++)
+	{
+	    if(lease[i].serverip != master->serverip)
+			continue;
+		
+	    lease[i].serverip = slave_ip;
+		commit_lease(&lease[i], slave_ip);
+  	}
+}
+
+int takeover_lease(server *master, int slave_ip)
+{
+    dhcplease *lease = (dhcplease *)malloc(256 * sizeof(dhcplease));
+	int num = 256, i;
+
+	db_server_leaselist(slave_ip, lease, &num, "creator");
+	for(i = 0; i < num; i++)
+	{
+	    if(lease[i].serverip != slave_ip)  //someon takeover already
+			LOG_ERR("someone takeover it already, force to takeover it anyway!\n");
+		
+	    lease[i].serverip = master->serverip;
+		commit_lease(&lease[i], slave_ip);
+  	}
 }
 
 int load_lease(server *node)
@@ -333,10 +362,11 @@ int load_lease(server *node)
 	int num = 256, i;
 	int timeout = time(NULL);
 
-	db_server_leaselist(node->serverip, lease, &num);
+	db_server_leaselist(node->serverip, lease, &num, "creator");
 	for(i = 0; i < num; i++)
 	{
-        if(!valid_range(node, lease[i].leaseip)){
+        if(!valid_range(node, lease[i].leaseip)
+			&& lease[i].leaseip != db_fixedip_query(lease[i].chaddr)){
 			mem_rmvlease(lease[i].leaseip, node);
 			db_lease_rmv_ip(lease[i].leaseip);
 			continue;
@@ -344,7 +374,7 @@ int load_lease(server *node)
 		//expired
         if(lease[i].timeout < timeout){
 			lease[i].state = LEASE_FREE;
-			commit_lease(&lease[i]);
+			commit_lease(&lease[i], node->serverip);
 		}
 
 		lease_add = get_mem_dhcplease(lease[i].leaseip, node);
@@ -380,7 +410,7 @@ int mark_timeout_lease()
 				continue;
 			
 			lease->state = LEASE_FREE;
-			commit_lease(lease);
+			commit_lease(lease, node->serverip);
 		}       
 	}
 
@@ -394,7 +424,7 @@ int reclaim_db_lease(server *node)
 	int num = 256, i;
 
 	lease_one = lease;
-	db_server_leaselist(node->serverip, lease, &num);
+	db_server_leaselist(node->serverip, lease, &num, "creator");
 	for(i = 0; i < num; i++)
 	{
         if(!valid_range(node, lease->leaseip)){
@@ -589,6 +619,7 @@ int ip_alloc(dhcprqst *req)
 {
 	server *node;
 	dhcplease  *lease, db_lease;
+	int creator;
 	int ip;
 
 	node = req->dhcpserver;
@@ -599,11 +630,18 @@ int ip_alloc(dhcprqst *req)
 		//deny ip lease to this mac
 		if(ip == -1)
 			return 0;
+
+		if((lease = get_mem_dhcplease(ip, node)) != NULL) {
+			LOG_ERR("fixed ip %u.%u.%u.%u has been allocated to an alive machine[mac: %s]\n", 
+				IPQUAD(ip), lease->chaddr);
+			return 0;
+		}
 		
 		if((lease = get_mem_leaseip(req->chaddr, node)) != NULL){
 			mem_rmvlease(lease->leaseip, node);
-		}else if(db_lease_query(req->chaddr, &db_lease)
-			&& db_lease.serverip == node->serverip){
+		}else if(((creator = db_lease_query(req->chaddr, &db_lease))>0)
+			&& db_lease.serverip == node->serverip
+			&& creator == node->serverip ){
 			lease = &db_lease;
 		}
 
@@ -612,7 +650,7 @@ int ip_alloc(dhcprqst *req)
 		
 		if((lease = lease_mem_new(req, node, ip))!= NULL)	{
 			set_mem_leaseip_timeout(lease, 30);
-			commit_lease(lease); //store in database for presentation
+			commit_lease(lease, node->serverip); //store in database for presentation
 			return lease->leaseip;
 		}
 		return 0;
@@ -623,7 +661,7 @@ int ip_alloc(dhcprqst *req)
 		if(!db_lease_rmv_ip(lease->leaseip))
 			LOG_ERR("rmv ip fail: %u.%u.%u.%u\n", IPQUAD(lease->leaseip));
 		set_mem_leaseip_timeout(lease, 30);
-		commit_lease(lease); //store in database for presentation
+		commit_lease(lease, node->serverip); //store in database for presentation
 		return lease->leaseip;
     }
 
@@ -635,7 +673,7 @@ int ip_alloc(dhcprqst *req)
 			LOG_ERR("rmv ip fail: %u.%u.%u.%u\n", IPQUAD(db_lease.leaseip));
 		add_mem_lease(&db_lease, node);
 		set_mem_leaseip_timeout(&db_lease, 30);
-		commit_lease(lease); //store in database for presentation
+		commit_lease(lease, node->serverip); //store in database for presentation
 		return db_lease.leaseip;
     }
 
@@ -643,15 +681,15 @@ int ip_alloc(dhcprqst *req)
 	ip = lease_mem_newip(node);
     if((lease = lease_mem_new(req, node, ip))!= NULL){
 		set_mem_leaseip_timeout(lease, 30);
-		commit_lease(lease); //store in database for presentation
+		commit_lease(lease, node->serverip); //store in database for presentation
 		return lease->leaseip;
 	}
 	return 0;
 }
 
-int commit_lease(dhcplease *lease)
+int commit_lease(dhcplease *lease, int creator)
 {
-	return db_lease_add(lease->leaseip, lease->chaddr, lease->state, lease->timeout, lease->serverip);
+	return db_lease_add(lease->leaseip, lease->chaddr, lease->state, lease->timeout, lease->serverip, creator);
 }
 
 int ip_lease(dhcprqst *req)
@@ -664,7 +702,7 @@ int ip_lease(dhcprqst *req)
 		if(lease->state == LEASE_FREE) //lease timeout
 			return 0;
 		set_mem_leaseip_timeout(lease, req->lease);
-		if(commit_lease(lease))
+		if(commit_lease(lease, node->serverip))
 			return lease->leaseip;
 		
 		LOG_ERR("commit ip: %u.%u.%u.%u to db fail[server:%u.%u.%u.%u]!\n", 
@@ -674,13 +712,12 @@ int ip_lease(dhcprqst *req)
     }
 
 	//for failover 
-	if(db_lease_query(req->chaddr, &db_lease) 
-		&& db_lease.serverip == node->serverip){
+	if(db_lease_query(req->chaddr, &db_lease) == node->serverip){
         if(db_lease.timeout < req->now_time) 
 			return 0;
 		
 		db_lease.timeout = req->now_time + req->lease;
-		if(commit_lease(&db_lease))
+		if(commit_lease(&db_lease, node->serverip))
 			return db_lease.leaseip;
 		
 		LOG_ERR("commit ip: %u.%u.%u.%u to db fail[server:%u.%u.%u.%u]!\n", 
@@ -994,10 +1031,15 @@ void dhcp_takeover(int serverip, int state)
 {
 	if(state == GIVEUP){
 		LOG_ERR("\nserver[%u.%u.%u.%u] goes up!\n\n", IPQUAD(serverip));
+		//update owner 
+		handover_lease(get_server(dhcpconf.serverip, &dhcpdata), serverip);
 		del_dhcpserver(serverip, &dhcpdata);
 	}else if(state == TAKEOVER){
 		LOG_ERR("\nserver[%u.%u.%u.%u] goes down!\n\n", IPQUAD(serverip));
+		//update owber 
+		takeover_lease(get_server(dhcpconf.serverip, &dhcpdata), serverip);
 		add_dhcpserver(&dhcpdata, serverip, add_dhcpsock(serverip, &dhcpdata), FALSE);
+		db_node_mark_dead(serverip, dhcpconf.serverip);
 	}else {
 		LOG_ERR("\nserver[%u.%u.%u.%u] ", IPQUAD(serverip));
 		LOG_ERR("unkown ip state %d!\n", state);

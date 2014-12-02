@@ -29,13 +29,14 @@ void db_change()
     int new_time = time(NULL);
 
 	//update every 2 seconds
-    if(old_time + 2 < new_time)
+    if(old_time + 2 > new_time)
 		return;
 	
 	heartbeat ++;
 	old_time = new_time;
 	write_heartbeat(dhcpconf.serverip, heartbeat, 1, 0, dhcpconf.hostname);
 	load_cfg_change();
+	load_lease(); //maybe some node hand over lease to me
 	mark_timeout_lease();
 }
 

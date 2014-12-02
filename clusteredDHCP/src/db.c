@@ -170,6 +170,34 @@ int db_fixedip_query(char *mac)
 	return tuple->ip;
 }
 
+int db_node_mark_dead(int serverip, int takeover_ip)
+{
+    db_data data;
+	tbl_node_tup *tuple = (tbl_node_tup *)&data.data;
+	db_op  *op;
+	char cmdbuff[256];
+
+	memset(cmdbuff, 0, 256);
+	data.type    = ACTIVENODE;
+	data.datalen = sizeof(tbl_node_tup);
+	op  = get_dbop(data.type);
+	snprintf(cmdbuff, 256, "SELECT * FROM %s WHERE server_ip = %d;", op->table_name, serverip);
+
+	if(!db_sqlite_exec(&data, 1, cmdbuff))
+		return 0;
+	
+	memset(cmdbuff, 0, 256);
+	if(data.datalen == 0){
+		LOG_ERR("node[%u.%u.%u.%u] info in db gone!\n", IPQUAD(serverip));
+	}else {
+        snprintf(cmdbuff, 256, "update %s set node_name = '%s', state = %d, heartbeat = %d, takeover_ip = %d where server_ip = %d;",
+                   op->table_name, tuple->name, 0, tuple->heartbeat, takeover_ip, serverip);
+
+	}
+
+	return db_sqlite_exec(&data, 0, cmdbuff);
+}
+
 int write_heartbeat(int serverip, int heartbeat, int state, int takeoverop, char *name)
 {
     tbl_node_tup tup;
@@ -180,7 +208,7 @@ int write_heartbeat(int serverip, int heartbeat, int state, int takeoverop, char
 	tup.takeover_ip = takeoverop;
 	strncpy(tup.name, name, 24);
 
-	return nodes_insert_tuple(&tup);
+	return nodes_update_tuple(&tup);
 }
 
 int nodes_decode(void *ptr, char **values)
@@ -195,7 +223,7 @@ int nodes_decode(void *ptr, char **values)
 	return 1;
 }
 
-int nodes_insert_tuple(tbl_node_tup *tup)
+int nodes_update_tuple(tbl_node_tup *tup)
 {
     db_data data;
 	tbl_node_tup *tuple = (tbl_node_tup *)&data.data;
@@ -299,7 +327,7 @@ int db_lease_rmv_ip(int ip)
 	return db_sqlite_exec(&data, 0, cmdbuff);
 }
 
-int db_server_leaselist(int serverip, dhcplease *lease, int *num)
+int db_server_leaselist(int serverip, dhcplease *lease, int *num, char *name)
 {
     db_data data, *pdata = &data;
 	tbl_lease_tup *tuple;
@@ -317,7 +345,7 @@ int db_server_leaselist(int serverip, dhcplease *lease, int *num)
 	}
 	
 	op  = get_dbop(pdata->type);
-	snprintf(cmdbuff, 256, "SELECT * FROM %s WHERE owner = %d;", op->table_name, serverip);
+	snprintf(cmdbuff, 256, "SELECT * FROM %s WHERE %s = %d;", op->table_name, name, serverip);
 
 	if(!db_sqlite_exec(pdata, 1, cmdbuff)|| pdata->datalen == 0){
 		if((*num) * sizeof(tbl_lease_tup) > 256)
@@ -339,7 +367,7 @@ int db_server_leaselist(int serverip, dhcplease *lease, int *num)
     return 1;
 }
 
-int db_lease_add(int ip, char *mac, int state, int timeout, int serverip)
+int db_lease_add(int ip, char *mac, int state, int timeout, int serverip, int creator)
 {
     db_data data;
 	tbl_lease_tup *tuple = (tbl_lease_tup *)&data.data;
@@ -358,7 +386,7 @@ int db_lease_add(int ip, char *mac, int state, int timeout, int serverip)
 	memset(cmdbuff, 0, 256);
 	if(data.datalen == 0){
 		snprintf(cmdbuff, 256, "INSERT INTO %s values (%d, \"%s\", %d, %d, %d, %d)",
-				   op->table_name, ip, mac, state, timeout, serverip, serverip);
+				   op->table_name, ip, mac, state, timeout, creator, serverip);
 	}else {
 	    //different server ip
 		if(tuple->owner != serverip) {
@@ -367,7 +395,7 @@ int db_lease_add(int ip, char *mac, int state, int timeout, int serverip)
 			return 0;
 		}
         snprintf(cmdbuff, 256, "update %s set hw_addr = '%s', state = %d, timeout = %d, creator = %d, owner = %d where lease_ip = %d;",
-                   op->table_name, mac, state, timeout, serverip, serverip, ip);
+                   op->table_name, mac, state, timeout, creator, serverip, ip);
 
 	}
 
@@ -395,7 +423,7 @@ int db_lease_query(char *mac, dhcplease *lease)
 	lease->serverip = tuple->owner;
 	lease->state    = tuple->state;
 	strncpy(lease->chaddr, tuple->mac, 24);
-	return 1;
+	return tuple->creator;
 }
 
 int db_lease_queryip(int ip, dhcplease *lease)
