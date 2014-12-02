@@ -12,8 +12,10 @@ router.get('/', function(req, res) {
     var sql = "SELECT * FROM tbl_lease";
     if(req.param('owner')!=null){
         var owner = req.param('owner');
-        sql += " WHERE owner='" + owner + "'";
+        sql += " WHERE owner='" + owner + "' and state > 0";
         scope = IP_Utils.intToIP(owner);
+    }else{
+        sql += " WHERE state > 0";
     }
     db_lease.each(sql, function(err, row){
         context.push({

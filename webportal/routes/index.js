@@ -30,7 +30,7 @@ router.get('/', function (req, res) {
                 "node_name": row.node_name,
                 "ip_num": row.server_ip,
                 "server_ip": IP_Utils.intToIP(row.server_ip),
-                "state": row.state,
+                "state": row.state > 0 ? "up":"down",
                 "heartbeat": row.heartbeat
             });
         }, function(){
