@@ -8,7 +8,7 @@ void poll_sock(dhcp_data *dhcp, fd_set *readfds)
 	struct timeval tv;
 
 	FD_ZERO(readfds);
-	tv.tv_sec  = 100000;
+	tv.tv_sec  = 1;
 	tv.tv_usec = 0;
 
     *readfds = dhcp->reads;

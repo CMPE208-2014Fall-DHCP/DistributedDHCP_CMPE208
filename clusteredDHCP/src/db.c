@@ -353,12 +353,19 @@ int db_lease_add(int ip, char *mac, int state, int timeout, int serverip)
 	snprintf(cmdbuff, 256, "SELECT * FROM %s WHERE lease_ip = %d;", op->table_name, ip);
 	if(!db_sqlite_exec(&data, 1, cmdbuff))
 		return 0;
+
 	
 	memset(cmdbuff, 0, 256);
 	if(data.datalen == 0){
 		snprintf(cmdbuff, 256, "INSERT INTO %s values (%d, \"%s\", %d, %d, %d, %d)",
 				   op->table_name, ip, mac, state, timeout, serverip, serverip);
 	}else {
+	    //different server ip
+		if(tuple->owner != serverip) {
+			LOG_ERR("lease ip: %u.%u.%u.%u is occupied by other server[%u.%u.%u.%u]. local server[%u.%u.%u.%u]\n",
+				IPQUAD(ip), IPQUAD(tuple->owner), IPQUAD(serverip));
+			return 0;
+		}
         snprintf(cmdbuff, 256, "update %s set hw_addr = '%s', state = %d, timeout = %d, creator = %d, owner = %d where lease_ip = %d;",
                    op->table_name, mac, state, timeout, serverip, serverip, ip);
 

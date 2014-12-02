@@ -8,6 +8,7 @@
 dhcp_config  dhcpconf;
 dhcp_data    dhcpdata;
 int heartbeat = 0;
+int old_time;
 
 struct option longopts[] = {
     {"logfile",       REQ_ARGU, NULL, 'l'},
@@ -18,15 +19,24 @@ struct option longopts[] = {
 	{"daemon",        NO_ARGU,  NULL, 'D'}, 
 };
 
-
-void ip_failover_func()
+void load_cfg_change()
 {
-	gethostname(dhcpconf.hostname, sizeof(dhcpconf.hostname));
-	while(1) {
-		heartbeat ++;
-		write_heartbeat(dhcpconf.serverip, heartbeat, 1, 0, dhcpconf.hostname);
-	    sleep(5);
-	}
+	update_dhcp_stack(&dhcpconf);
+}
+
+void db_change()
+{	
+    int new_time = time(NULL);
+
+	//update every 2 seconds
+    if(old_time + 2 < new_time)
+		return;
+	
+	heartbeat ++;
+	old_time = new_time;
+	write_heartbeat(dhcpconf.serverip, heartbeat, 1, 0, dhcpconf.hostname);
+	load_cfg_change();
+	mark_timeout_lease();
 }
 
 pthread_t start_task(void *ctrl, void * func)
@@ -54,7 +64,7 @@ pthread_t start_task(void *ctrl, void * func)
 void handle_sig(int sig_num)
 {
     sig_num = sig_num;
-    exit_log();
+    //exit_log();
 }
 
 void chk_para(dhcp_config *conf)
@@ -77,6 +87,9 @@ void chk_para(dhcp_config *conf)
 
     if(dhcpconf.loglevel < 0 || dhcpconf.loglevel > LOG_BUTT)    
 		dhcpconf.loglevel = 0;
+
+	gethostname(dhcpconf.hostname, sizeof(dhcpconf.hostname));
+	old_time = time(NULL);
 }
 
 void load_para(int argc, char **argv)
@@ -123,11 +136,6 @@ void register_sig()
     signal(SIGHUP,  handle_sig);
 }
 
-void load_cfg_change()
-{
-	update_dhcp_stack(&dhcpconf);
-}
-
 int main(int argc, char **argv)
 {
 	fd_set readfds;
@@ -137,12 +145,11 @@ int main(int argc, char **argv)
 	init_log(&dhcpconf);
     init_db(&dhcpconf);
     init_dhcp_stack(&dhcpconf);
-    register_sig();
-	start_task(NULL, ip_failover_func);
+    //register_sig();
 
     while(1) {
 		poll_sock(&dhcpdata, &readfds);
-		load_cfg_change();
+		db_change();
 		dhcpserver(&readfds);
 	}
 

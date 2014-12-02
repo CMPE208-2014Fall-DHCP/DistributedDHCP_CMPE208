@@ -331,6 +331,7 @@ int load_lease(server *node)
 	dhcplease *lease_add;
     dhcplease *lease = (dhcplease *)malloc(256 * sizeof(dhcplease));
 	int num = 256, i;
+	int timeout = time(NULL);
 
 	db_server_leaselist(node->serverip, lease, &num);
 	for(i = 0; i < num; i++)
@@ -340,7 +341,12 @@ int load_lease(server *node)
 			db_lease_rmv_ip(lease[i].leaseip);
 			continue;
 		}
-		
+		//expired
+        if(lease[i].timeout < timeout){
+			lease[i].state = LEASE_FREE;
+			commit_lease(&lease[i]);
+		}
+
 		lease_add = get_mem_dhcplease(lease[i].leaseip, node);
 		if(lease_add != NULL)
 			continue;
@@ -348,6 +354,37 @@ int load_lease(server *node)
 		memcpy((void *)lease_add, (void *)&lease[i], sizeof(dhcplease));
 		add_mem_lease(lease_add, node);     
 	}
+}
+
+int mark_timeout_lease()
+{
+	server *node;
+	dhcplease *lease = NULL;
+	list_head* pos = NULL, *next = NULL;
+	int timeout = time(NULL);
+    int i;
+	
+    if(dhcpdata.server_num == 0)
+		return 0;
+
+    for(i = 0; i < dhcpdata.server_num; i++ ){
+		node = &dhcpdata.serverlist[i];
+	    if(!node->sock)
+			continue;
+		
+		list_for_each_safe(pos, next, &node->lease_list) {
+			lease = list_entry(pos, dhcplease, list);
+			if(lease->timeout >= timeout) 
+				continue;
+			if(lease->state == LEASE_FREE) 
+				continue;
+			
+			lease->state = LEASE_FREE;
+			commit_lease(lease);
+		}       
+	}
+
+	return 1;
 }
 
 int reclaim_db_lease(server *node)
@@ -575,6 +612,7 @@ int ip_alloc(dhcprqst *req)
 		
 		if((lease = lease_mem_new(req, node, ip))!= NULL)	{
 			set_mem_leaseip_timeout(lease, 30);
+			commit_lease(lease); //store in database for presentation
 			return lease->leaseip;
 		}
 		return 0;
@@ -585,6 +623,7 @@ int ip_alloc(dhcprqst *req)
 		if(!db_lease_rmv_ip(lease->leaseip))
 			LOG_ERR("rmv ip fail: %u.%u.%u.%u\n", IPQUAD(lease->leaseip));
 		set_mem_leaseip_timeout(lease, 30);
+		commit_lease(lease); //store in database for presentation
 		return lease->leaseip;
     }
 
@@ -596,6 +635,7 @@ int ip_alloc(dhcprqst *req)
 			LOG_ERR("rmv ip fail: %u.%u.%u.%u\n", IPQUAD(db_lease.leaseip));
 		add_mem_lease(&db_lease, node);
 		set_mem_leaseip_timeout(&db_lease, 30);
+		commit_lease(lease); //store in database for presentation
 		return db_lease.leaseip;
     }
 
@@ -603,6 +643,7 @@ int ip_alloc(dhcprqst *req)
 	ip = lease_mem_newip(node);
     if((lease = lease_mem_new(req, node, ip))!= NULL){
 		set_mem_leaseip_timeout(lease, 30);
+		commit_lease(lease); //store in database for presentation
 		return lease->leaseip;
 	}
 	return 0;
@@ -627,7 +668,7 @@ int ip_lease(dhcprqst *req)
 			return lease->leaseip;
 		
 		LOG_ERR("commit ip: %u.%u.%u.%u to db fail[server:%u.%u.%u.%u]!\n", 
-			IPQUAD(db_lease.leaseip), IPQUAD(node->serverip));
+			IPQUAD(lease->leaseip), IPQUAD(node->serverip));
 		set_mem_leaseip_timeout(lease, 0);
 		return 0;
     }
@@ -946,6 +987,7 @@ void init_dhcp_stack(dhcp_config *conf)
     add_dhcpserver(&dhcpdata, conf->serverip, add_dhcpsock(conf->serverip, &dhcpdata), TRUE);
 	update_dhcp_stack(conf);
 	load_lease(get_server(conf->serverip, &dhcpdata));
+	printf("DHCP stack is ready, listen on port %d...\n", dhcpdata.lport);
 }
 
 void dhcp_takeover(int serverip, int state)

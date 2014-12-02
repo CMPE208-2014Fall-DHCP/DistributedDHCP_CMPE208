@@ -39,11 +39,7 @@ typedef int            DHCP_INT;
 typedef unsigned int   DHCP_UINT;
 
 
-#define IPQUAD(addr) \
-((unsigned char *)&addr)[0], \
-((unsigned char *)&addr)[1], \
-((unsigned char *)&addr)[2], \
-((unsigned char *)&addr)[3]
+#define IPQUAD(addr) ((unsigned char *)&addr)[0], ((unsigned char *)&addr)[1], ((unsigned char *)&addr)[2], ((unsigned char *)&addr)[3]
 
 #define DEFAULT_DHCP_LOG    "/var/clusterdhcp.log" 
 #define DEFAULT_DBPATH      "/mnt/glusterfs/" 
