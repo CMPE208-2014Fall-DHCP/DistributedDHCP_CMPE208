@@ -15,7 +15,7 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
-#include <net/if.h>
+//#include <net/if.h>
 #include <fcntl.h>
 #include <errno.h>
 #include <time.h>
@@ -139,8 +139,10 @@ typedef struct _iprange
 
 typedef struct _server
 {
+    int          index;
 	int          sock;
 	int          master;
+	int          arp_failcount;
 	int          serverip;  //network endian
 	iprange      srv_ip_range;  
 	int          leasenum;
@@ -151,7 +153,10 @@ typedef struct _server
 typedef struct _dhcp_config
 {
     int     serverip;
-    int     daemon;
+    int     daemon;	
+    int     if_index;
+	DHCP_UINT8 mac[6];
+	char    ethname[32];
 	char    db_path[256];
 
 	db_op   dbop[16];
@@ -169,6 +174,7 @@ typedef struct _dhcp_config
 typedef struct _dhcp_data
 {
 	int          sock;
+	int          arp_sock;
 	int          server_num;
 	server  serverlist[16];
     DHCP_UINT16  lport;	

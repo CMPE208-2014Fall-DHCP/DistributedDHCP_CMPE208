@@ -523,7 +523,7 @@ int db_sqlite_exec(db_data *data, int read, char *cmdbuff)
     for (i = 0; i < nRow && i < max_row; i++)
     {
         op->decode((void *)(data->data + data->datalen), &dbResult[(i+1) * nColumn]);
-        data->datalen += (i+1)*op->size;
+        data->datalen += op->size;
     }
 	
 	sqlite3_free_table(dbResult);	

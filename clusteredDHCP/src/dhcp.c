@@ -136,7 +136,7 @@ char *hex2String(char *target, DHCP_UINT8 *hex, DHCP_UINT8 bytes)
 
 void dhcp_proc(int sock)
 {
-    int ret;
+    int ret = 0;
 	
 	if(!dhcp_rcvmsg(sock, &dhcpr))
 		return;
@@ -246,8 +246,10 @@ void add_options(dhcprqst *req)
 		pvdata(req, &op);
 	}
 
-    if(req->resp_type == DHCP_MESS_NAK)
+    if(req->resp_type == DHCP_MESS_NAK){
+		*(req->vp) = DHCP_OPTION_END;
 		return;
+	}
 	
 	if (req->req_type && req->resp_type)
 	{
@@ -790,7 +792,11 @@ int dhcprequest(dhcprqst *req)
 	}
 
 	//may renew comes
-	return dhcp_request_allocateIP(req);
+	if (req->serverid == 0)
+		return dhcp_request_allocateIP(req);
+    else
+		return 0; //not ours
+	
 }
 
 int dhcpdecline(dhcprqst *req)
@@ -932,6 +938,24 @@ char *dhcp_msgname(DHCP_UINT8 type)
 	return "UNKOWN MSG";
 }
 
+
+	
+int deactive_dhcpserver(server *node)
+{
+
+    
+    if(node->sock){
+		close(node->sock);
+        FD_CLR(node->sock, &dhcpdata.reads);
+	}
+
+	node->sock 	 = 0;
+	node->master = TRUE;
+	node->arp_failcount = 0;
+
+	return 1;
+}
+
 int del_dhcpserver(int serverip, dhcp_data *dhcp)
 {
     int i;
@@ -969,6 +993,7 @@ void add_dhcpserver(dhcp_data *dhcp, int serverip, int sock, int master)
 	node = get_server(serverip, dhcp);
 	if(!node){
 		node = &dhcp->serverlist[dhcp->server_num];
+		node->index = dhcp->server_num;
 		dhcp->server_num ++;
 	}
 	
@@ -1020,25 +1045,44 @@ void init_dhcp_stack(dhcp_config *conf)
 		exit(-1);
 	}
 
+    system("echo 1 > /proc/sys/net/ipv4/conf/all/arp_ignore");
+	
     //each node has one server ip being master only
     add_dhcpserver(&dhcpdata, conf->serverip, add_dhcpsock(conf->serverip, &dhcpdata), TRUE);
 	update_dhcp_stack(conf);
 	load_lease(get_server(conf->serverip, &dhcpdata));
+	
+	dhcpdata.arp_sock = arp_sock(conf);
+	FD_SET(dhcpdata.arp_sock, &dhcpdata.reads);
+	
 	printf("DHCP stack is ready, listen on port %d...\n", dhcpdata.lport);
 }
 
 void dhcp_takeover(int serverip, int state)
 {
+    server *node;
+
+	node = get_server(serverip, &dhcpdata);
+	if(node == NULL){
+		LOG_ERR("\nserver[%u.%u.%u.%u] unkown!\n\n", IPQUAD(serverip));
+		return;
+	}
+	
 	if(state == GIVEUP){
 		LOG_ERR("\nserver[%u.%u.%u.%u] goes up!\n\n", IPQUAD(serverip));
 		//update owner 
+
+		delete_ip(serverip, node->index);
 		handover_lease(get_server(dhcpconf.serverip, &dhcpdata), serverip);
-		del_dhcpserver(serverip, &dhcpdata);
+		deactive_dhcpserver(node);
 	}else if(state == TAKEOVER){
 		LOG_ERR("\nserver[%u.%u.%u.%u] goes down!\n\n", IPQUAD(serverip));
 		//update owber 
 		takeover_lease(get_server(dhcpconf.serverip, &dhcpdata), serverip);
-		add_dhcpserver(&dhcpdata, serverip, add_dhcpsock(serverip, &dhcpdata), FALSE);
+		add_dhcpserver(&dhcpdata, serverip, 0, FALSE);
+		node = get_server(serverip, &dhcpdata);
+		add_ip(serverip, node->index);
+		node->sock = add_dhcpsock(serverip, &dhcpdata),
 		db_node_mark_dead(serverip, dhcpconf.serverip);
 	}else {
 		LOG_ERR("\nserver[%u.%u.%u.%u] ", IPQUAD(serverip));
@@ -1085,13 +1129,18 @@ void load_neighbour_server(dhcp_data *dhcp, int *change)
 	//since all nodes' server ip will be takeover by active node, tuple for this ip is still there
 }
 
-server *get_serverip_greater(dhcp_data *dhcp, int ip)
+server *get_serverip_greater(dhcp_data *dhcp, DHCP_UINT32 ip)
 {
-	int i, index = 0;
+	int i, index = -1;
 
 	for(i = 0; i < dhcp->server_num; i++ ){
-		if(dhcp->serverlist[i].serverip > ip
-			&& dhcp->serverlist[index].serverip >= dhcp->serverlist[i].serverip)
+		if((DHCP_UINT32)(dhcp->serverlist[i].serverip) <= ip)
+			continue;
+
+		if(index == -1)
+			index = i;
+		
+		if((DHCP_UINT32)(dhcp->serverlist[index].serverip) > (DHCP_UINT32)(dhcp->serverlist[i].serverip))
 			index = i;
 	}
 
@@ -1112,8 +1161,8 @@ int get_master_num(dhcp_data *dhcp)
 
 void divide_range(dhcp_data *dhcp)
 {
-	int average, node_num, i, leastIP=0;
-	DHCP_UINT32 ip_s, ip_e, start, end;
+	int average, node_num, i;
+	DHCP_UINT32 ip_s, ip_e, start, end, leastIP=0;
 	iprange *range = &dhcp->ip_range;
     server *node;
 
